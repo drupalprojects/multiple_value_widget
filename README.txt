@@ -5,7 +5,7 @@
   For example, widget for Image field type can contain preview of a file, upload button, text field for title
   and alt attributes. Sometimes you have a lot of images to be uploaded and the form takes up a lot of space.
 
-  This module integrates the jQuery UI Accordion plugin as a replacement for draggable tables
+  This module integrates the jQuery UI plugins as a replacement for draggable tables
   to make multiple value forms more user friendly.
 
 -- INSTALLATION --
