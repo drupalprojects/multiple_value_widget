@@ -20,7 +20,6 @@ function multiple_value_widget_field_multiple_value_form($variables) {
 
   $element = $variables['element'];
 
-
   if ($element['#cardinality'] == 1) {
     return;
   }
