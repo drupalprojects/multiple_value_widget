@@ -1,21 +1,20 @@
 (function($) {
 
-var attachPlugin = function(context, settings, widget_type) {
+var attachPlugin = function(context, id, widget_type) {
 
-  var wrapperClass = '.mvw-type-' + widget_type;
   var tabsClass = '.mvw-tabs';
   var rowClass = '.mvw-group';
   var weightClass = '.mvw-weight-delta-order';
+
+  var wrapper = $('#' + id);
 
   $(weightClass).hide();
 
   var updateField =  function (event, ui) {
 
-    var wrapper = $(ui.item.context).parents(wrapperClass)
-    
     var siblings = [];
-   
-    if (settings.mvw.widget_type == 'tabs') {
+
+    if (widget_type == 'tabs') {
       $(tabsClass + ' li a', wrapper).each(function() {
         var sibling = $($(this).attr('href')).get(0);
         siblings.push(sibling)
@@ -28,15 +27,15 @@ var attachPlugin = function(context, settings, widget_type) {
     }
 
     if ($(targetElement).is('select')) {
-      
+
       // Get a list of acceptable values.
       var values = [];
       $('option', targetElement).each(function () {
         values.push(this.value);
       });
-      
+
       var maxVal = values[values.length - 1];
-      
+
       // Populate the values in the siblings.
       $(weightClass, siblings).each(function () {
         // If there are more items than possible values, assign the maximum value to the row.
@@ -60,7 +59,7 @@ var attachPlugin = function(context, settings, widget_type) {
   }
 
   if (widget_type == 'tabs') {
-    var tabs = jQuery(wrapperClass).tabs();
+    var tabs = wrapper.tabs();
     tabs.find( ".ui-tabs-nav" )
     .sortable({
       axis: "x",
@@ -69,7 +68,7 @@ var attachPlugin = function(context, settings, widget_type) {
     });
   }
   else {
-    jQuery(wrapperClass)
+    wrapper
     .accordion({
       collapsible: true,
       active: false ,
@@ -81,9 +80,9 @@ var attachPlugin = function(context, settings, widget_type) {
         stop: function( event, ui ) { ui.item.children( "h3" ).triggerHandler( "focusout" ); },
         update: updateField,
         delay: 100
-    });      
+    });
   }
-  
+
 }
 
 /**
@@ -91,14 +90,12 @@ var attachPlugin = function(context, settings, widget_type) {
  */
 Drupal.behaviors.multiple_value_widget = {
   attach: function (context, settings) {
-    if ($.inArray('tabs', settings.mvw.widget_types) != -1) {
-      attachPlugin(context, settings, 'tabs')
-    }
-    if ($.inArray('accordion', settings.mvw.widget_types) != -1) {
-      attachPlugin(context, settings, 'accordion')
-    }
+
+    $.each(settings.mvw,function(id, type) {
+      attachPlugin(context, id, type);
+    })
+
   }
 };
-
 
 })(jQuery);
