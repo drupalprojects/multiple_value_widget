@@ -273,8 +273,10 @@ function multiple_value_widget_form_field_ui_field_edit_form_alter(&$form, &$for
 
   if ($multiple_values_behaviors == FIELD_BEHAVIOR_DEFAULT || in_array($widget['type'], $file_field_widgets)) {
 
-    if (isset($form['#instance']['widget']['settings']['multiple_value_widget'])) {
-      $default_value = $form['#instance']['widget']['settings']['multiple_value_widget'];
+    $settings = $form['#instance']['widget']['settings'];
+
+    if (isset($settings['multiple_value_widget'])) {
+      $default_value = $settings['multiple_value_widget'];
     }
     else {
       $default_value = 'table';
