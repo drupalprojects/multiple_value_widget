@@ -262,26 +262,41 @@ function theme_multiple_value_widget_group($vars) {
  */
 function multiple_value_widget_form_field_ui_field_edit_form_alter(&$form, &$form_state) {
 
-  if (isset($form['#instance']['widget']['settings']['multiple_value_widget'])) {
-    $default_value = $form['#instance']['widget']['settings']['multiple_value_widget'];
-  }
-  else {
-    $default_value = 'table';
-  }
+  $widget = $form['#instance']['widget'];
 
-  $form['instance']['widget']['settings']['multiple_value_widget'] = array(
-    '#type' => 'radios',
-    '#title' => t('Multiple value widget'),
-    '#options' => array(
-      'table' => t('Table'),
-      'accordion' => t('Accordion'),
-      'tabs' => t('Tabs'),
-      'blocks' => t('Blocks'),
-    ),
-    '#required' => TRUE,
-    '#states' => array('invisible' => array(':input[name="field[cardinality]"]' => array('value' => 1))),
-    '#weight' => -1,
-    '#default_value' => $default_value,
+  $multiple_values_behaviors = field_behaviors_widget('multiple values', $form['#instance']);
+  $file_field_widgets = variable_get(
+    'multiple_value_widget_file_field_widgets',
+    array(
+      'file_generic',
+      'image_image',
+    )
   );
+
+  if ($multiple_values_behaviors == FIELD_BEHAVIOR_DEFAULT || in_array($widget['type'], $file_field_widgets)) {
+
+    if (isset($form['#instance']['widget']['settings']['multiple_value_widget'])) {
+      $default_value = $form['#instance']['widget']['settings']['multiple_value_widget'];
+    }
+    else {
+      $default_value = 'table';
+    }
+
+    $form['instance']['widget']['settings']['multiple_value_widget'] = array(
+      '#type' => 'radios',
+      '#title' => t('Multiple value widget'),
+      '#options' => array(
+        'table' => t('Table'),
+        'accordion' => t('Accordion'),
+        'tabs' => t('Tabs'),
+        'blocks' => t('Blocks'),
+      ),
+      '#required' => TRUE,
+      '#states' => array('invisible' => array(':input[name="field[cardinality]"]' => array('value' => 1))),
+      '#weight' => -1,
+      '#default_value' => $default_value,
+    );
+
+  }
 
 }
