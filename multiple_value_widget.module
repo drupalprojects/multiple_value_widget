@@ -49,7 +49,13 @@ function multiple_value_widget_field_multiple_value_form($variables) {
     }
   }
 
-  $instance = field_read_instance($widgets[0]['#entity_type'], $widgets[0]['#field_name'], $widgets[0]['#bundle']);
+  $first_widget = $widgets[0];
+  // Special case for Entity reference module.
+  // TODO: Find more clear way to read field instance.
+  if (isset($first_widget['target_id'])) {
+    $first_widget = $first_widget['target_id'];
+  }
+  $instance = field_read_instance($first_widget['#entity_type'], $first_widget['#field_name'], $first_widget['#bundle']);
   if (empty($instance['widget']['settings']['multiple_value_widget']) || $instance['widget']['settings']['multiple_value_widget'] == 'table') {
     return theme_field_multiple_value_form($variables);
   }
@@ -135,8 +141,6 @@ function multiple_value_widget_file_widget_multiple($variables) {
 
   $output = '<div id="' . $id . '" class="mvw-type-' . $widget_type . '">';
 
-  $gpoups = array();
-  $total_widgets = count($widgets);
   foreach ($widgets as $delta => &$widget) {
 
     // Save the uploading row for last.
@@ -256,38 +260,58 @@ function theme_multiple_value_widget_group($vars) {
  */
 function multiple_value_widget_form_field_ui_field_edit_form_alter(&$form, &$form_state) {
 
-  $settings = $form['#instance']['widget']['settings'];
+  $widget = $form['#instance']['widget'];
 
-  $form['instance']['widget']['settings']['multiple_value_widget'] = array(
-    '#type' => 'radios',
-    '#title' => t('Multiple value widget'),
-    '#options' => array(
-      'table' => t('Table'),
-      'accordion' => t('Accordion'),
-      'tabs' => t('Tabs'),
-      'blocks' => t('Blocks'),
-    ),
-    '#required' => TRUE,
-    '#states' => array('invisible' => array(':input[name="field[cardinality]"]' => array('value' => 1))),
-    '#weight' => -2,
-    '#default_value' => isset ($settings['multiple_value_widget']) ? $settings['multiple_value_widget'] : 'table',
+  $multiple_values_behaviors = field_behaviors_widget('multiple values', $form['#instance']);
+  $file_field_widgets = variable_get(
+    'multiple_value_widget_file_field_widgets',
+    array(
+      'file_generic',
+      'image_image',
+    )
   );
 
-  $form['instance']['widget']['settings']['multiple_value_limit'] = array(
-    '#type' => 'select',
-    '#title' => t('Minimal number of values'),
-    '#options' => array(0 => t('Default')) + drupal_map_assoc(range(1, 10)),
-    '#default_value' => isset($settings['multiple_value_limit']) ? $settings['multiple_value_limit'] : 0,
-    '#weight' => -1,
-    '#description' => t('Minimal number of single widgets displayed in the form.'),
-  );
+  if ($multiple_values_behaviors == FIELD_BEHAVIOR_DEFAULT || in_array($widget['type'], $file_field_widgets)) {
+
+    if (isset($form['#instance']['widget']['settings']['multiple_value_widget'])) {
+      $default_value = $form['#instance']['widget']['settings']['multiple_value_widget'];
+    }
+    else {
+      $default_value = 'table';
+    }
+
+    $form['instance']['widget']['settings']['multiple_value_widget'] = array(
+      '#type' => 'radios',
+      '#title' => t('Multiple value widget'),
+      '#options' => array(
+        'table' => t('Table'),
+        'accordion' => t('Accordion'),
+        'tabs' => t('Tabs'),
+        'blocks' => t('Blocks'),
+      ),
+      '#required' => TRUE,
+      '#states' => array('invisible' => array(':input[name="field[cardinality]"]' => array('value' => 1))),
+      '#weight' => -1,
+      '#default_value' => $default_value,
+    );
+
+    $form['instance']['widget']['settings']['multiple_value_limit'] = array(
+      '#type' => 'select',
+      '#title' => t('Minimal number of values'),
+      '#options' => array(0 => t('Default')) + drupal_map_assoc(range(1, 10)),
+      '#default_value' => isset($settings['multiple_value_limit']) ? $settings['multiple_value_limit'] : 0,
+      '#weight' => -1,
+      '#description' => t('Minimal number of single widgets displayed in the form.'),
+    );
+
+  }
 
 }
 
 /**
  *
  */
-function multiple_value_widget_multiple_value_form($field, $instance, $langcode, $items, $form, $form_state) {
+function multiple_value_widget_multiple_value_form($field, $instance, $langcode, $items, &$form, &$form_state) {
 
   if (empty($instance['widget']['settings']['multiple_value_limit'])) {
     return field_multiple_value_form($field, $instance, $langcode, $items, $form, $form_state);
@@ -316,7 +340,6 @@ function multiple_value_widget_multiple_value_form($field, $instance, $langcode,
 
   $function = $instance['widget']['module'] . '_field_widget_form';
 
-
   if ($cardinality_unlimitted) {
     if ($min_limit > $field_state['items_count'] && $min_limit > $build_items) {
       $max_delta = $min_limit;
@@ -339,16 +362,6 @@ function multiple_value_widget_multiple_value_form($field, $instance, $langcode,
     $max_delta = min($max_delta, $field['cardinality'] - 1);
     $add_more = $max_delta < $field['cardinality'] - 1;
   }
-
-  $data[] = '---------------------';
-  @$data[] = 'cardinality: ' . $field['cardinality'];
-  @$data[] = 'build_items: ' . $build_items;
-  $data[] = 'Ajax: ' . ($ajax ? 'TRUE' : 'FALSE');
-  @$data[] = 'Min limit: ' . $min_limit;
-  @$data[] = 'Max limit: ' . $max_limit;
-  $data[] = 'Max delta: ' . $max_delta;
-  $data[] = 'items_count: ' . $field_state['items_count'];
-  $data = implode('<br/>', $data);
 
   if (function_exists($function)) {
 
@@ -400,9 +413,6 @@ function multiple_value_widget_multiple_value_form($field, $instance, $langcode,
         $field_elements[$delta] = $element;
       }
     }
-
-
-
     if ($field_elements) {
       $field_elements += array(
         '#theme' => 'field_multiple_value_form',
@@ -412,11 +422,10 @@ function multiple_value_widget_multiple_value_form($field, $instance, $langcode,
         '#required' => $instance['required'],
         '#description' => $description,
         '#prefix' => '<div id="' . $wrapper_id . '">',
-        '#suffix' => '</div>' . $data,
+        '#suffix' => '</div>',
         '#max_delta' => $max_delta,
       );
       // Add 'add more' button, if not working with a programmed form.
-      //if (($cardinality_unlimitted || (isset($min_limit) && $field['cardinality'] >  $min_limit + 1)) && empty($form_state['programmed'])) {
       if ($add_more && empty($form_state['programmed'])) {
         $field_elements['add_more'] = array(
           '#type' => 'submit',
@@ -436,25 +445,16 @@ function multiple_value_widget_multiple_value_form($field, $instance, $langcode,
   }
 
   return $field_elements;
-
 }
 
-
+/**
+ *
+ */
 function multiple_value_widget_add_more_js($form, $form_state) {
   $button = $form_state['triggering_element'];
 
   // Go one level up in the form, to the widgets container.
   $element = drupal_array_get_nested_value($form, array_slice($button['#array_parents'], 0, -1));
-  $field_name = $element['#field_name'];
-  $langcode = $element['#language'];
-  $parents = $element['#field_parents'];
-
-  $field_state = field_form_get_state($parents, $field_name, $langcode, $form_state);
-
-  $field = $field_state['field'];
-  if ($field['cardinality'] != FIELD_CARDINALITY_UNLIMITED) {
-    // return;
-  }
 
   // Add a DIV around the delta receiving the Ajax effect.
   $delta = $element['#max_delta'];
@@ -462,22 +462,4 @@ function multiple_value_widget_add_more_js($form, $form_state) {
   $element[$delta]['#suffix'] = (isset($element[$delta]['#suffix']) ? $element[$delta]['#suffix'] : '') . '</div>';
 
   return $element;
-}
-
-
-function ___multiple_value_widget_field_widget_info_alter(&$info) {
-  foreach ($info as $widget_name => $widget_info) {
-    if (empty($widget_info['behaviors']['multiple values']) || $widget_info['behaviors']['multiple values'] == FIELD_BEHAVIOR_DEFAULT) {
-      $info[$widget_name]['default_module'] = $info[$widget_name]['module'];
-      $info[$widget_name]['multiple values'] = FIELD_BEHAVIOR_CUSTOM;
-      $info[$widget_name]['module'] = 'multiple_value_widget';
-    }
-  }
-}
-
-function ___multiple_value_widget_field_widget_form(&$form, &$form_state, $field, $instance, $langcode, $items, $delta, $element) {
-  drupal_set_message('d: ' . $delta);
- // $elements = multiple_value_widget_multiple_value_form($field, $instance, $langcode, $items, $form, $form_state);
-
-  return text_field_widget_form($form, $form_state, $field, $instance, $langcode, $items, $delta, $element);
 }
