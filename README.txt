@@ -12,12 +12,13 @@
 
   Install as usual, see http://drupal.org/node/895232 for further information.
 
+  To be able set number of visible items when using multiple values
+  you should add $conf['field_multiple_value_form'] = 'multiple_value_widget_multiple_value_form';
+  to your settings.php file and then apply this patch to Drupal core:
+  https://drupal.org/files/issues/1592814-7.patch
+
 -- CONFIGURATION --
 
   You should enable accordion multiple value widget on the field settings page.
   For example, for nodes it's something like
   admin/structure/types/manage/NODE_TYPE/fields/FIELD_NAME
-
--- MAINTAINERS --
-
-  Chi - http://drupal.org/user/556138
