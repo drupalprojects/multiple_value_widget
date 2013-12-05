@@ -17,6 +17,8 @@
   to your settings.php file and then apply this patch to Drupal core:
   https://drupal.org/files/issues/1592814-7.patch
 
+  For Field Collection module you have disable "Hide blank items" option on field settings page.
+
 -- CONFIGURATION --
 
   You should enable accordion multiple value widget on the field settings page.
