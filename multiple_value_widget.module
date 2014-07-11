@@ -9,108 +9,65 @@
  * Implements hook_theme().
  */
 function multiple_value_widget_theme() {
-  return array(
-    'multiple_value_widget_group' => array(
-      'render element' => 'elements',
-    ),
+  $theme['multiple_value_widget_form'] = array(
+    'render element' => 'elements',
+    'file' => 'multiple_value_widget.theme.inc'
   );
+  $theme['multiple_value_widget_group'] = array(
+    'render element' => 'elements',
+    'file' => 'multiple_value_widget.theme.inc'
+  );
+  return $theme;
 }
+
 
 /**
- * Impements hook_theme_registry_alter().
+ * Implements hook_ctools_plugin_type().
  */
-function multiple_value_widget_theme_registry_alter(&$theme_registry) {
-  $theme_registry['field_multiple_value_form']['function'] = 'multiple_value_widget_field_multiple_value_form';
-  $theme_registry['file_widget_multiple']['function'] = 'multiple_value_widget_file_widget_multiple';
+function multiple_value_widget_ctools_plugin_type() {
+  $plugins['widgets'] = array(
+    'cache' => true,
+  );
+  return $plugins;
 }
+
 
 /**
- * Implements theme_field_multiple_value_form().
+ * Implements hook_ctools_plugin_directory().
  */
-function multiple_value_widget_field_multiple_value_form($variables) {
-
-  $element = $variables['element'];
-
-  // Why do we need this?
-  if ($element['#cardinality'] == 1) {
-    return;
+function multiple_value_widget_ctools_plugin_directory($module, $plugin) {
+  if($module === 'multiple_value_widget') {
+    return 'widgets';
   }
-
-  // Sort items according to '_weight' (needed when the form comes back after
-  // preview or failed validation).
-  $widgets = array();
-
-  foreach (element_children($element) as $key) {
-    if ($key === 'add_more') {
-      $add_more_button = &$element[$key];
-    }
-    else {
-      $widgets[] = &$element[$key];
-    }
-  }
-
-  $first_widget = $widgets[0];
-  // Special case for Entity reference module.
-  // TODO: Find more clear way to read field instance.
-  if (isset($first_widget['target_id'])) {
-    $first_widget = $first_widget['target_id'];
-  }
-  $instance = field_read_instance($first_widget['#entity_type'], $first_widget['#field_name'], $first_widget['#bundle']);
-  if (empty($instance['widget']['settings']['multiple_value_widget']) || $instance['widget']['settings']['multiple_value_widget'] == 'table') {
-    return theme_field_multiple_value_form($variables);
-  }
-
-  $widget_type = $instance['widget']['settings']['multiple_value_widget'];
-
-  usort($widgets, '_field_sort_items_value_helper');
-  $id = 'mvw-' . $element['#field_name'];
-  multiple_value_widget_add_asserts($id, $widget_type);
-
-  $groups = array();
-  $output = '<div id="' . $id . '" class="mvw-type-' . $widget_type . '">';
-  foreach ($widgets as $delta => $widget) {
-    $widget['_weight']['#attributes']['class'] = array('mvw-weight-delta-order');
-    $group_id = 'mvw-group-' . $element['#field_name'] . '-' . $delta;
-
-    $title = $element['#title'] . ' (' . ($delta + 1) . ')';
-
-    $element['#delta'] = $delta;
-    drupal_alter('multiple_value_widget_element_title', $title, $element);
-
-    if ($widget_type == 'tabs') {
-      $links['mvw-tab-' . $delta] = array(
-        'href' => '',
-        'title' => $title,
-        'html' => TRUE,
-        'fragment' => $group_id ,
-        'external' => TRUE,
-      );
-    }
-
-    $groups[$delta] = array(
-      '#theme' => 'multiple_value_widget_group',
-      '#title' => $title,
-      '#widget_type' => $widget_type,
-      '#attributes' => array(
-        'id' => $group_id,
-        'class' => array('mvw-group', 'delta-' . $delta),
-      ),
-      'widget' => $widget,
-    );
-  }
-
-  if ($widget_type == 'tabs' && isset($links)) {
-    $attributes = array('class' => array('mvw-tabs'));
-    $output .= theme('links', array('links' => $links, 'attributes' => $attributes));
-  }
-
-  $output .= render($groups);
-
-  $output .= '</div>';
-  $output .= '<div class="clearfix">' . drupal_render($add_more_button) . '</div>';
-
-  return $output;
 }
+
+
+/**
+ * Implements hook_field_attach_form().
+ */
+function multiple_value_widget_field_attach_form($entity_type, $entity, &$form, &$form_state, $langcode) {
+
+  $bundle = end(entity_extract_ids($entity_type, $entity));
+
+  foreach(element_children($form) as $field_name) {
+    foreach(element_children($form[$field_name]) as $language) {
+      $element = &$form[$field_name][$language];
+      if(empty($element['#theme']) || $element['#theme'] !== 'field_multiple_value_form') {
+        continue;
+      }
+      $instance = field_info_instance($entity_type, $field_name, $bundle);
+      $widget_type = !empty($instance['widget']['settings']['multiple_value_widget'])
+        ? $instance['widget']['settings']['multiple_value_widget']
+        : null;
+      if(!is_null($widget_type) && $widget_type !== 'table') {
+        $element['#theme'] = 'multiple_value_widget_form';
+        $element['#mvw']['widget_type'] = $widget_type;
+        $element['#mvw']['field_name'] = $field_name;
+      }
+    }
+  }
+}
+
 
 /**
  * Implements theme_file_widget_multiple().
@@ -137,7 +94,7 @@ function multiple_value_widget_file_widget_multiple($variables) {
 
   $id = 'mvw-' . $element['#field_name'];
 
-  multiple_value_widget_add_asserts($id, $widget_type);
+  multiple_value_widget_add_assets($id, $widget_type);
 
   $output = '<div id="' . $id . '" class="mvw-type-' . $widget_type . '">';
 
@@ -209,7 +166,7 @@ function multiple_value_widget_file_widget_multiple($variables) {
 /**
  * Adds a JavaScript, CSS and settings to the page.
  */
-function multiple_value_widget_add_asserts($id, $widget_type) {
+function multiple_value_widget_add_assets($id, $widget_type) {
   $path = drupal_get_path('module', 'multiple_value_widget');
   drupal_add_library('system', 'ui.' . $widget_type);
   drupal_add_library('system', 'ui.sortable');
@@ -218,43 +175,24 @@ function multiple_value_widget_add_asserts($id, $widget_type) {
   drupal_add_js(array('mvw' => array($id => $widget_type)), 'setting');
 }
 
+/**
+ * Implements template_preprocess_HOOK().
+ */
+function template_preprocess_multiple_value_widget_group(&$vars) {
+  $elements = &$vars['elements'];
+  $elements['#ui_classes'][] = 'ui-corner-all';
+}
 
 /**
- * Returns HTML for a single widget group.
+ * Implements template_process_HOOK().
  */
-function theme_multiple_value_widget_group($vars) {
-  $elements = $vars['elements'];
+function template_process_multiple_value_widget_group(&$vars) {
+  $elements['#ui_classes'][] = 'ui-widget';
+  $elements['#ui_classes'][] = 'ui-widget-content';
+  $elements['#ui_classes'][] = 'ui-helper-clearfix';
 
-  if ($elements['#widget_type'] == 'blocks') {
-    $ui_classes = array(
-      'ui-widget',
-      'ui-widget-content',
-      'ui-helper-clearfix',
-      'ui-corner-all',
-    );
-    $elements['#attributes']['class'] = array_merge($ui_classes, $elements['#attributes']['class']);
-  }
-  $output = '<div' . drupal_attributes($elements['#attributes']) . '>';
-
-  switch ($elements['#widget_type']) {
-    case 'accordion':
-      $output .= '<div class="mvw-group-title">';
-      $output .= '<a href="#">' . $elements['#title'] . '<span class="ui-icon ui-icon-arrowthick-2-n-s"></span></a>';
-      $output .= '</div>';
-      break;
-
-    case 'blocks':
-      $output .= '<div class="mvw-group-title ui-widget-header ui-corner-all">';
-      $output .= $elements['#title'] . '<span class="ui-icon ui-icon-minusthick"></span>';
-      $output .= '</div>';
-      break;
-
-  }
-
-  $output .= '<div class="mvw-group-content">' . drupal_render($elements['widget']) . '</div>';
-  $output .= '</div>';
-  return $output;
 }
+
 
 
 /**
@@ -275,26 +213,26 @@ function multiple_value_widget_form_field_ui_field_edit_form_alter(&$form, &$for
 
   if ($multiple_values_behaviors == FIELD_BEHAVIOR_DEFAULT || in_array($widget['type'], $file_field_widgets)) {
 
-    if (isset($form['#instance']['widget']['settings']['multiple_value_widget'])) {
-      $default_value = $form['#instance']['widget']['settings']['multiple_value_widget'];
+    $value = isset($widget['settings']['multiple_value_widget'])
+      ? $widget['settings']['multiple_value_widget']
+      : 'table';
+
+    $options = array();
+    ctools_include('plugins');
+    foreach(ctools_get_plugins('multiple_value_widget', 'widgets') as $name => $plugin) {
+      $options += array($name => $plugin['title']);
     }
-    else {
-      $default_value = 'table';
-    }
+    asort($options);
+    $options = array('table' => t('Default')) + $options;
 
     $form['instance']['widget']['settings']['multiple_value_widget'] = array(
-      '#type' => 'radios',
-      '#title' => t('Multiple value widget'),
-      '#options' => array(
-        'table' => t('Table'),
-        'accordion' => t('Accordion'),
-        'tabs' => t('Tabs'),
-        'blocks' => t('Blocks'),
-      ),
+      '#type'     => 'radios',
+      '#title'    => t('Multiple value widget'),
+      '#options'  => $options,
       '#required' => TRUE,
-      '#states' => array('invisible' => array(':input[name="field[cardinality]"]' => array('value' => 1))),
-      '#weight' => -1,
-      '#default_value' => $default_value,
+      '#states'   => array('invisible' => array(':input[name="field[cardinality]"]' => array('value' => 1))),
+      '#weight'   => -1,
+      '#default_value' => $value,
     );
 
   }
