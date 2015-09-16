@@ -85,6 +85,8 @@ var attachPlugin = function(context, id, widget_type) {
         collapsible: true,
         active: false ,
         header: '> div > .mvw-group-title',
+        heightStyle: "content",
+        autoHeight: false,
       })
       .sortable({
           axis: 'y',
