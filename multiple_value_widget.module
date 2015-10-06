@@ -9,36 +9,152 @@
  * Implements hook_theme().
  */
 function multiple_value_widget_theme() {
-  $theme['multiple_value_widget_form'] = array(
-    'render element' => 'elements',
-    'file' => 'multiple_value_widget.theme.inc'
+
+  $path = drupal_get_path('module', 'multiple_value_widget');
+
+  return array(
+
+    'multiple_value_widget_form' => array(
+      'render element' => 'element',
+      'file' => 'multiple_value_widget.theme.inc',
+    ),
+
+    'multiple_value_widget_file_widget_multiple' => array(
+      'render element' => 'element',
+    ),
+
+    'multiple_value_widget_item' => array(
+      'render element' => 'element',
+      'file' => 'multiple_value_widget.theme.inc'
+    ),
+
+    'multiple_value_widget_widget_accordion' => array(
+      'render element' => 'element',
+      'path' => $path . '/widgets/accordion',
+      'file' => 'accordion.inc'
+    ),
+
+    'multiple_value_widget_widget_blocks' => array(
+      'render element' => 'element',
+      'path' => $path . '/widgets/blocks',
+      'file' => 'blocks.inc'
+    ),
+
+    'multiple_value_widget_widget_tabs' => array(
+      'render element' => 'element',
+      'path' => $path . '/widgets/tabs',
+      'file' => 'tabs.inc'
+    ),
+
   );
-  $theme['multiple_value_widget_group'] = array(
-    'render element' => 'elements',
-    'file' => 'multiple_value_widget.theme.inc'
+}
+
+/**
+ * Implements hook_library().
+ */
+function multiple_value_widget_library() {
+
+  $version = '7.1';
+  $path = drupal_get_path('module', 'multiple_value_widget');
+
+  return array(
+
+    'core' => array(
+      'version' => $version,
+      'js' => array(
+        $path . '/multiple_value_widget.js' => array(),
+      ),
+      'dependencies' => array(
+        array('system', 'ui.sortable'),
+      ),
+    ),
+
+    'widget_accordion' => array(
+      'version' => $version,
+      'css' => array(
+        $path . '/widgets/accordion/accordion.css' => array('basename' => 'multiple_value_widget-accordion.css'),
+      ),
+      'dependencies' => array(
+        array('system', 'ui.accordion'),
+      ),
+    ),
+
+    'widget_blocks' => array(
+      'version' => $version,
+      'css' => array(
+        $path . '/widgets/blocks/blocks.css' => array('basename' => 'multiple_value_widget-blocks.css'),
+      ),
+    ),
+
+    'widget_tabs' => array(
+      'version' => $version,
+//      'css' => array(
+//        $path . '/widgets/tabs/tabs.css' => array('basename' => 'multiple_value_widget-tabs.css'),
+//      ),
+      'dependencies' => array(
+        array('system', 'ui.tabs'),
+      ),
+    ),
+
   );
-  return $theme;
 }
 
 
-/**
- * Implements hook_ctools_plugin_type().
- */
-function multiple_value_widget_ctools_plugin_type() {
-  $plugins['widgets'] = array(
-    'cache' => true,
+
+function multiple_value_widget_multiple_value_widget_widgets() {
+  return array(
+    'accordion' => array(
+      'title' => 'Accordion',
+      'custom' => array(
+        'file_generic',
+        'image_image',
+      ),
+      'theme' => 'multiple_value_widget_widget_accordion',
+    ),
+
+    'blocks' => array(
+      'title' => 'Blocks',
+      'custom' => array(
+        'file_generic',
+        'image_image',
+      ),
+      'theme' => 'multiple_value_widget_widget_blocks',
+    ),
+
+    'tabs' => array(
+      'title' => 'Tabs',
+      'custom' => array(
+        'file_generic',
+        'image_image',
+      ),
+      'theme' => 'multiple_value_widget_widget_tabs',
+    ),
+
   );
-  return $plugins;
 }
 
 
-/**
- * Implements hook_ctools_plugin_directory().
- */
-function multiple_value_widget_ctools_plugin_directory($module, $plugin) {
-  if($module === 'multiple_value_widget') {
-    return 'widgets';
+
+function multiple_value_widget_get_widgets($widget_type = null) {
+  $widgets = array();
+  foreach(module_implements('multiple_value_widget_widgets') as $module) {
+    $module_widgets = module_invoke($module, 'multiple_value_widget_widgets');
+    if(is_null($widget_type)) {
+      $widgets += $module_widgets;
+      continue;
+    }
+    foreach($module_widgets as $name => $widget) {
+      if(isset($widget['custom']) && in_array($widget_type, $widget['custom'])) {
+        $widgets[$name] += array($name => $widget);
+      }
+    }
   }
+  return $widgets;
+}
+
+function multiple_value_widget_get_widget($name) {
+  $widgets = multiple_value_widget_get_widgets();
+  return isset($widgets[$name]) ? $widgets[$name] : null;
 }
 
 
@@ -47,7 +163,7 @@ function multiple_value_widget_ctools_plugin_directory($module, $plugin) {
  */
 function multiple_value_widget_field_attach_form($entity_type, $entity, &$form, &$form_state, $langcode) {
 
-  $bundle = end(entity_extract_ids($entity_type, $entity));
+  list(, , $bundle) = entity_extract_ids($entity_type, $entity);
 
   foreach(element_children($form) as $field_name) {
     foreach(element_children($form[$field_name]) as $language) {
@@ -64,163 +180,57 @@ function multiple_value_widget_field_attach_form($entity_type, $entity, &$form, 
         $element['#mvw']['widget_type'] = $widget_type;
         $element['#mvw']['field_name'] = $field_name;
       }
+      foreach(element_children($element) as $delta) {
+        if(isset($element[$delta]['_weight'])) {
+          $element[$delta]['_weight']['#type'] = 'hidden';
+          $element[$delta]['_weight']['#element_validate'] = array('element_validate_integer');
+          $element[$delta]['_weight']['#attributes']['class'][] = 'mvw-weight-delta-order';
+        }
+      }
     }
   }
-}
-
-
-/**
- * Implements theme_file_widget_multiple().
- */
-function multiple_value_widget_file_widget_multiple($variables) {
-
-  $element = $variables['element'];
-
-  // Get our list of widgets in order (needed when the form comes back after
-  // preview or failed validation).
-  $widgets = array();
-  foreach (element_children($element) as $key) {
-    $widgets[] = &$element[$key];
-  }
-
-  $instance = field_read_instance($widgets[0]['#entity_type'], $widgets[0]['#field_name'], $widgets[0]['#bundle']);
-  if (empty($instance['widget']['settings']['multiple_value_widget']) || $instance['widget']['settings']['multiple_value_widget'] == 'table') {
-    return theme_file_widget_multiple($variables);
-  }
-
-  $widget_type = $instance['widget']['settings']['multiple_value_widget'];
-
-  usort($widgets, '_field_sort_items_value_helper');
-
-  $id = 'mvw-' . $element['#field_name'];
-
-  multiple_value_widget_add_assets($id, $widget_type);
-
-  $output = '<div id="' . $id . '" class="mvw-type-' . $widget_type . '">';
-
-  $gpoups = array();
-  $total_widgets = count($widgets);
-  foreach ($widgets as $delta => &$widget) {
-
-    // Save the uploading row for last.
-    if ($widget['#file'] == FALSE) {
-      $widget['#title'] = $element['#file_upload_title'];
-      $widget['#description'] = $element['#file_upload_description'];
-      continue;
-    }
-
-    if (isset($widget['#file'])) {
-      $title = '<span class="file">' . check_plain($widget['#file']->filename) . '</span>';
-      $title .= ' <span class="file-size">(' . format_size($widget['#file']->filesize) . ')</span> ';
-    }
-    else {
-      $title = $element['#title'] . ' (' . ($delta + 1) . ')';
-    }
-    $element['#delta'] = $delta;
-
-    drupal_alter('multiple_value_widget_element_title', $title, $element);
-    $group_id = 'mvw-group-' . $element['#field_name'] . '-' . $delta;
-
-    if ($widget_type == 'tabs') {
-      $links['mvw-tab-' . $delta] = array(
-        'href' => '',
-        'title' => $title,
-        'html' => TRUE,
-        'fragment' => $group_id,
-        'external' => TRUE,
-      );
-    }
-
-    // Render everything else together in a tabs, without the normal wrappers.
-    $widget['#theme_wrappers'] = array();
-    $widget['_weight']['#attributes']['class'] = array('mvw-weight-delta-order');
-
-    $groups[$delta] = array(
-      '#theme' => 'multiple_value_widget_group',
-      '#title' => $title,
-      '#widget_type' => $widget_type,
-      '#attributes' => array(
-        'id' => $group_id,
-        'class' => array('mvw-group', 'delta-' . $delta),
-      ),
-      'widget' => $widget,
-    );
-
-    // Do not print widgets twice.
-    hide($widget);
-
-  }
-  if ($widget_type == 'tabs' && isset($links)) {
-    $attributes = array('class' => array('mvw-tabs'));
-    $output .= theme('links', array('links' => $links, 'attributes' => $attributes));
-  }
-  $output .= render($groups);
-  $output .= '</div>';
-
-  $output .= drupal_render_children($element);
-
-  return $output;
-
-}
-
-/**
- * Adds a JavaScript, CSS and settings to the page.
- */
-function multiple_value_widget_add_assets($id, $widget_type) {
-  $path = drupal_get_path('module', 'multiple_value_widget');
-  drupal_add_library('system', 'ui.' . $widget_type);
-  drupal_add_library('system', 'ui.sortable');
-  drupal_add_js($path . '/multiple_value_widget.js');
-  drupal_add_css($path . '/multiple_value_widget.css');
-  drupal_add_js(array('mvw' => array($id => $widget_type)), 'setting');
 }
 
 /**
  * Implements template_preprocess_HOOK().
  */
-function template_preprocess_multiple_value_widget_group(&$vars) {
-  $elements = &$vars['elements'];
-  $elements['#ui_classes'][] = 'ui-corner-all';
+function template_preprocess_multiple_value_widget_item(&$vars) {
+  $element = &$vars['element'];
+  $element['#ui_classes'][] = 'ui-corner-all';
 }
 
 /**
  * Implements template_process_HOOK().
  */
-function template_process_multiple_value_widget_group(&$vars) {
-  $elements['#ui_classes'][] = 'ui-widget';
-  $elements['#ui_classes'][] = 'ui-widget-content';
-  $elements['#ui_classes'][] = 'ui-helper-clearfix';
-
+function template_process_multiple_value_widget_item(&$vars) {
+  $element = &$vars['element'];
+  $element['#ui_classes'][] = 'ui-widget';
+  $element['#ui_classes'][] = 'ui-widget-content';
+  $element['#ui_classes'][] = 'ui-helper-clearfix';
 }
 
 
-
 /**
- * Impements hook_from_FORM_ID_alter().
+ * Impements hook_form_FORM_ID_alter().
  */
 function multiple_value_widget_form_field_ui_field_edit_form_alter(&$form, &$form_state) {
 
-  $widget = $form['#instance']['widget'];
+  $instance_widget = $form['#instance']['widget'];
 
-  $multiple_values_behaviors = field_behaviors_widget('multiple values', $form['#instance']);
-  $file_field_widgets = variable_get(
-    'multiple_value_widget_file_field_widgets',
-    array(
-      'file_generic',
-      'image_image',
-    )
-  );
+  $custom_widget_type = field_behaviors_widget('multiple values', $form['#instance']) === FIELD_BEHAVIOR_DEFAULT
+    ? NULL
+    : $instance_widget['type'];
 
-  if ($multiple_values_behaviors == FIELD_BEHAVIOR_DEFAULT || in_array($widget['type'], $file_field_widgets)) {
+  $widgets = multiple_value_widget_get_widgets($custom_widget_type);
 
-    $value = isset($widget['settings']['multiple_value_widget'])
-      ? $widget['settings']['multiple_value_widget']
+  if ($widgets) {
+    $value = isset($instance_widget['settings']['multiple_value_widget'])
+      ? $instance_widget['settings']['multiple_value_widget']
       : 'table';
 
     $options = array();
-    ctools_include('plugins');
-    foreach(ctools_get_plugins('multiple_value_widget', 'widgets') as $name => $plugin) {
-      $options += array($name => $plugin['title']);
+    foreach($widgets as $name => $widget) {
+      $options += array($name => $widget['title']);
     }
     asort($options);
     $options = array('table' => t('Default')) + $options;

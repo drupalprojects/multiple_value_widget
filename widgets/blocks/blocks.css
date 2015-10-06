@@ -1,3 +1,4 @@
+body {border:10px solid red !important}
 .mvw-type-blocks .mvw-item {
     display: inline-block;
     vertical-align: top;
@@ -8,28 +9,28 @@
     cursor: move;
 }
 
-.mvw-type-blocks .mvw-group {
+.mvw-type-blocks .mvw-item {
     margin: .5em 0;
 }
-.mvw-type-blocks.ui-sortable .mvw-group {
+.mvw-type-blocks.ui-sortable .mvw-item {
     cursor: move;
 }
-.mvw-type-blocks .mvw-group .mvw-group-title {
+.mvw-type-blocks .mvw-item .mvw-item-title {
     margin: .25em;
     padding: .25em .5em;
 }
-.mvw-type-blocks .mvw-group .mvw-group-title .ui-icon {
+.mvw-type-blocks .mvw-item .mvw-item-title .ui-icon {
     float: right;
     cursor: pointer;
     margin-top: 1px;
     border: 1px solid transparent;
     border-radius: 5px;
 }
-.mvw-type-blocks .mvw-group .mvw-group-title .ui-icon:hover {
+.mvw-type-blocks .mvw-item .mvw-item-title .ui-icon:hover {
     background-color: #EEE;
     border: 1px solid #999;
 }
-.mvw-type-blocks .mvw-group .mvw-group-content {
+.mvw-type-blocks .mvw-item .mvw-item-content {
     padding: 0.5em;
 }
 .mvw-type-blocks .ui-sortable-placeholder {

@@ -1,27 +1,41 @@
 <?php
 
-$plugin = array(
-  'title' => 'Tabs',
-  'process' => 'multiple_value_widget_plugin_tabs_process'
-);
+function template_preprocess_multiple_value_widget_widget_tabs(&$vars) {
+  $element = &$vars['element'];
 
-function multiple_value_widget_plugin_tabs_process(&$render) {
+  $element['#attached']['library'][] = array('multiple_value_widget', 'widget_tabs');
 
-  $render['#attached']['library'][] = array('system', 'ui.tabs');
+  $element['#attributes']['class'][] = 'ui-tabs';
+  $element['#attributes']['class'][] = 'ui-widget-content';
+  $element['#attributes']['class'][] = 'mvw-type-tabs';
+  $element['#attributes']['class'][] = 'mvw-tabs';
 
-  $render['links'] = array(
-    '#weight' => -1,
-    '#theme'  => 'links',
-    '#links'  => array(),
-    '#attributes' => array('class' => array('mvw-tabs')),
-  );
-  foreach($render['#widgets'] as $delta => $widget) {
-    $render['#links']['mvw-tab-' . $delta] = array(
+  $links = array();
+
+  foreach(element_children($element['widgets']) as $delta) {
+    $widget = &$element['widgets'][$delta];
+
+    $links['mvw-tab-' . $delta] = array(
       'href'     => '',
       'title'    => $widget['#title'],
       'html'     => TRUE,
-      'fragment' => $widget['#group_id'],
+      'fragment' => $widget['#attributes']['id'],
       'external' => TRUE,
     );
   }
+
+  $element['widgets']['links'] = array(
+    '#weight' => -1,
+    '#theme'  => 'links',
+    '#attributes' => array(
+      'class' => array('ui-widget-header')
+    ),
+    '#links'  => $links,
+  );
+}
+
+function theme_multiple_value_widget_widget_tabs($vars) {
+  $element = $vars['element'];
+  drupal_process_attached($element);
+  return '<div' . drupal_attributes($element['#attributes']) . '>' . drupal_render_children($vars['element']) . '</div>';
 }

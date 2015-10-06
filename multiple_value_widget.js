@@ -1,88 +1,126 @@
 (function($) {
 
-var widgets = {};
+  var attachPlugin = function(context, id, widget_type) {
 
-widgets.blocks = function($wrapper, settings) {
+    var weightClass = '.mvw-weight-delta-order';
 
-  var optionsSortable = {
-    update: function(event, ui) {
-      $wrapper.trigger('mvwOrderChanged');
-    },
-    delay: 100
-  };
+    var wrapper = $('#' + id);
+    if (widget_type == 'blocks') {
+      $('.mvw-item .mvw-item-title .ui-icon', wrapper )
+        .not('.ui-icon-processed')
+        .addClass("ui-icon-processed")
+        .click(function() {
+          $(this)
+            .toggleClass("ui-icon-minusthick")
+            .toggleClass( "ui-icon-plusthick" )
+            .parents('.mvw-item:first').find('.mvw-item-content').toggle();
+        });
+    }
 
-  $wrapper.sortable(optionsSortable);
-};
+    $(weightClass).hide();
 
+    var updateField =  function (event, ui) {
 
-widgets.accordion = function($wrapper, settings) {
-
-  var optionsAccordion = {
-    collapsible: true,
-    active: false,
-    header: '> div > .mvw-item-title'
-  };
-
-  var optionsSortable = {
-    axis: 'y',
-    handle: '.mvw-item-title',
-    //stop: function( event, ui ) { ui.item.children('.mvw-item-title').triggerHandler('focusout'); },
-    update: function(event, ui) {
-      $wrapper.trigger('mvwOrderChanged');
-    },
-    delay: 100
-  };
-
-  $wrapper.accordion(optionsAccordion).sortable(optionsSortable);
-};
-
-widgets.tabs = function($wrapper, settings) {
-
-};
+      var siblings = [];
+      if (widget_type == 'tabs') {
+        $('.mvw-tabs li a', wrapper).each(function() {
+          var sibling = $($(this).attr('href')).get(0);
+          siblings.push(sibling)
+        })
+        var targetElement = $(weightClass, $($('a', ui.item.context).attr('href'))).get(0);
+      }
+      else {
+        $('.mvw-item', wrapper).each(function(){siblings.push(this)})
+        var targetElement = $(weightClass, $(ui.item.context)).get(0);
+      }
 
 
-var attachPlugin = function(context, id, widgetType, settings) {
+      if ($(targetElement).is('select')) {
 
-  var weightClass = '.mvw-weight-delta-order';
+        // Get a list of acceptable values.
+        var values = [];
+        $('option', targetElement).each(function () {
+          values.push(this.value);
+        });
 
-  var $wrapper = $('#' + id);
-  console.log($wrapper);
+        var maxVal = values[values.length - 1];
 
-  //$(weightClass).hide();
+        // Populate the values in the siblings.
+        $(weightClass, siblings).each(function () {
+          // If there are more items than possible values, assign the maximum value to the row.
+          if (values.length > 0) {
+            this.value = values.shift();
+          }
+          else {
+            this.value = maxVal;
+          }
+        });
+      }
+      else {
+        // Assume a numeric input field.
+        var weight = parseInt($(weightClass, siblings[0]).val(), 10) || 0;
+        $(weightClass, siblings).each(function () {
+          this.value = weight;
+          weight++;
+        });
+      }
 
-  function updateWeights(event, ui) {
-    var values = [];
-    var $weights = $wrapper.find(weightClass);
-    $weights.each(function() {
-      values.push($(this).val());
-    });
-    values.sort();
-    $weights.each(function() {
-      $(this).val(values.shift());
-    });
-    console.log(event, ui);
-  }
+    }
 
-  $wrapper.bind('sortupdate', updateWeights);
+    switch (widget_type) {
+      case 'tabs':
+        var tabs = wrapper.tabs();
+        tabs.find( ".ui-tabs-nav" )
+          .sortable({
+            axis: "x",
+            stop: function() { tabs.tabs( "refresh" ); },
+            update: updateField,
+            delay: 100
+          });
+        break;
 
-  if(widgets[widgetType]) {
-    widgets[widgetType]($wrapper, settings);
-  }
-};
+      case 'accordion':
+        wrapper
+          .accordion({
+            collapsible: true,
+            active: false ,
+            header: '> div > .mvw-item-title'
+          })
+          .sortable({
+            axis: 'y',
+            handle: '.mvw-item-title',
+            stop: function( event, ui ) { ui.item.children('.mvw-item-title').triggerHandler('focusout'); },
+            update: updateField,
+            delay: 100
+          });
+        break;
 
-/**
- * Main behavior for multiple value widget.
- */
-Drupal.behaviors.multiple_value_widget = {
-  attach: function (context, settings) {
+      case 'blocks':
+        wrapper
+          .sortable({
+            update: updateField,
+            delay: 100
+          });
 
-    if (settings.mvw) {
-      $.each(settings.mvw, function (id, type) {
-        attachPlugin(context, id, type);
-      });
+        break;
+
     }
 
   }
-};
+
+  /**
+   * Main behavior for multiple value widget.
+   */
+  Drupal.behaviors.multiple_value_widget = {
+    attach: function (context, settings) {
+
+      if (settings.mvw) {
+        $.each(settings.mvw, function (id, type) {
+          attachPlugin(context, id, type);
+        });
+      }
+
+    }
+  };
 
 })(jQuery);
