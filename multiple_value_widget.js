@@ -2,6 +2,8 @@
 
   var attachPlugin = function(context, id, widget_type) {
 
+
+
     var weightClass = '.mvw-weight-delta-order';
 
     var wrapper = $('#' + id);
@@ -19,27 +21,33 @@
 
     $(weightClass).hide();
 
-    var updateField =  function (event, ui) {
+    function updateField(event, ui) {
 
-      var siblings = [];
-      if (widget_type == 'tabs') {
-        $('.mvw-tabs li a', wrapper).each(function() {
-          var sibling = $($(this).attr('href')).get(0);
-          siblings.push(sibling)
-        })
-        var targetElement = $(weightClass, $($('a', ui.item.context).attr('href'))).get(0);
+      var siblings = [], $targetElement;
+
+      switch(widget_type) {
+
+        case 'tabs':
+          $('.mvw-tabs li a', wrapper).each(function() {
+            var sibling = $($(this).attr('href')).get(0);
+            siblings.push(sibling)
+          });
+          $targetElement = $(weightClass, $($('a', ui.item.context).attr('href')));
+          break;
+
+        default:
+          $('.mvw-item', wrapper).each(function(){
+            siblings.push(this)
+          });
+          $targetElement = $(weightClass, $(ui.item.context));
+          break;
       }
-      else {
-        $('.mvw-item', wrapper).each(function(){siblings.push(this)})
-        var targetElement = $(weightClass, $(ui.item.context)).get(0);
-      }
 
-
-      if ($(targetElement).is('select')) {
+      if ($targetElement.is('select')) {
 
         // Get a list of acceptable values.
         var values = [];
-        $('option', targetElement).each(function () {
+        $('option', $targetElement).each(function () {
           values.push(this.value);
         });
 
@@ -48,20 +56,14 @@
         // Populate the values in the siblings.
         $(weightClass, siblings).each(function () {
           // If there are more items than possible values, assign the maximum value to the row.
-          if (values.length > 0) {
-            this.value = values.shift();
-          }
-          else {
-            this.value = maxVal;
-          }
+          this.value = values.length > 0 ? values.shift() : maxVal;
         });
       }
       else {
         // Assume a numeric input field.
         var weight = parseInt($(weightClass, siblings[0]).val(), 10) || 0;
         $(weightClass, siblings).each(function () {
-          this.value = weight;
-          weight++;
+          this.value = weight++;
         });
       }
 
