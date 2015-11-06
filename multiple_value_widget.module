@@ -145,7 +145,7 @@ function multiple_value_widget_get_widgets($widget_type = null) {
     }
     foreach($module_widgets as $name => $widget) {
       if(isset($widget['custom']) && in_array($widget_type, $widget['custom'])) {
-        $widgets[$name] += array($name => $widget);
+        $widgets[$name] = $widget;
       }
     }
   }
