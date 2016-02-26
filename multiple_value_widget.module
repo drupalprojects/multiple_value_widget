@@ -23,11 +23,6 @@ function multiple_value_widget_theme() {
       'render element' => 'element',
     ),
 
-    'multiple_value_widget_item' => array(
-      'render element' => 'element',
-      'file' => 'multiple_value_widget.theme.inc'
-    ),
-
     'multiple_value_widget_widget_accordion' => array(
       'render element' => 'element',
       'path' => $path . '/widgets/accordion',
@@ -74,6 +69,9 @@ function multiple_value_widget_library() {
       'css' => array(
         $path . '/widgets/accordion/accordion.css' => array('basename' => 'multiple_value_widget-accordion.css'),
       ),
+      'js' => array(
+        $path . '/widgets/accordion/accordion.js' => array(),
+      ),
       'dependencies' => array(
         array('system', 'ui.accordion'),
       ),
@@ -84,13 +82,16 @@ function multiple_value_widget_library() {
       'css' => array(
         $path . '/widgets/blocks/blocks.css' => array('basename' => 'multiple_value_widget-blocks.css'),
       ),
+      'js' => array(
+        $path . '/widgets/blocks/blocks.js' => array(),
+      ),
     ),
 
     'widget_tabs' => array(
       'version' => $version,
-//      'css' => array(
-//        $path . '/widgets/tabs/tabs.css' => array('basename' => 'multiple_value_widget-tabs.css'),
-//      ),
+      'js' => array(
+        $path . '/widgets/tabs/tabs.js' => array(),
+      ),
       'dependencies' => array(
         array('system', 'ui.tabs'),
       ),
@@ -190,25 +191,6 @@ function multiple_value_widget_field_attach_form($entity_type, $entity, &$form, 
     }
   }
 }
-
-/**
- * Implements template_preprocess_HOOK().
- */
-function template_preprocess_multiple_value_widget_item(&$vars) {
-  $element = &$vars['element'];
-  $element['#ui_classes'][] = 'ui-corner-all';
-}
-
-/**
- * Implements template_process_HOOK().
- */
-function template_process_multiple_value_widget_item(&$vars) {
-  $element = &$vars['element'];
-  $element['#ui_classes'][] = 'ui-widget';
-  $element['#ui_classes'][] = 'ui-widget-content';
-  $element['#ui_classes'][] = 'ui-helper-clearfix';
-}
-
 
 /**
  * Impements hook_form_FORM_ID_alter().
