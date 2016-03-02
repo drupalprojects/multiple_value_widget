@@ -9,6 +9,7 @@
   PluginBase.prototype.attach = function() {
     this.$weights.hide();
   };
+  PluginBase.prototype.detach = function() { };
   PluginBase.prototype.sortElementsByIndex = function(a, b) {
     if(a.compareDocumentPosition) {
       return (a.compareDocumentPosition(b) & document.DOCUMENT_POSITION_PRECEDING) ? 1 : -1;
@@ -35,9 +36,15 @@
     attach: function(context, settings) {
       if(settings.mvw) {
         $.each(settings.mvw, function(id, type) {
-          var $wrapper = $('#' + id, context);
-          if(typeof MultipleValueWidget.plugins[type] === 'function' && $wrapper.length) {
-            var plugin = new MultipleValueWidget.plugins[type]($wrapper);
+          var
+            $wrapper = $('#' + id, context),
+            plugins = MultipleValueWidget.plugins;
+
+          if(typeof plugins[type] === 'function' && $wrapper.length) {
+            var plugin = typeof plugins[type].getInstance === 'function'
+              ? plugins[type].getInstance($wrapper)
+              : new plugins[type]($wrapper);
+
             plugin.attach();
           }
         });
