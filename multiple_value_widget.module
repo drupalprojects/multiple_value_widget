@@ -21,6 +21,7 @@ function multiple_value_widget_theme() {
 
     'multiple_value_widget_file_widget_multiple' => array(
       'render element' => 'element',
+      'file' => 'multiple_value_widget.theme.inc',
     ),
 
     'multiple_value_widget_widget_accordion' => array(
@@ -101,7 +102,9 @@ function multiple_value_widget_library() {
 }
 
 
-
+/**
+ * Implements hook_multiple_value_widget_widgets().
+ */
 function multiple_value_widget_multiple_value_widget_widgets() {
   return array(
     'accordion' => array(
@@ -164,29 +167,32 @@ function multiple_value_widget_get_widget($name) {
  */
 function multiple_value_widget_field_attach_form($entity_type, $entity, &$form, &$form_state, $langcode) {
 
-  list(, , $bundle) = entity_extract_ids($entity_type, $entity);
+  $theme_map = array(
+    'field_multiple_value_form' => 'multiple_value_widget_form',
+    'file_widget_multiple' => 'multiple_value_widget_file_widget_multiple',
+  );
 
-  foreach(element_children($form) as $field_name) {
-    foreach(element_children($form[$field_name]) as $language) {
-      $element = &$form[$field_name][$language];
-      if(empty($element['#theme']) || $element['#theme'] !== 'field_multiple_value_form') {
-        continue;
-      }
-      $instance = field_info_instance($entity_type, $field_name, $bundle);
-      $widget_type = !empty($instance['widget']['settings']['multiple_value_widget'])
-        ? $instance['widget']['settings']['multiple_value_widget']
-        : null;
-      if(!is_null($widget_type) && $widget_type !== 'table') {
-        $element['#theme'] = 'multiple_value_widget_form';
-        $element['#mvw']['widget_type'] = $widget_type;
-        $element['#mvw']['field_name'] = $field_name;
-      }
-      foreach(element_children($element) as $delta) {
-        if(isset($element[$delta]['_weight'])) {
-          $element[$delta]['_weight']['#type'] = 'hidden';
-          $element[$delta]['_weight']['#element_validate'] = array('element_validate_integer');
-          $element[$delta]['_weight']['#attributes']['class'][] = 'mvw-weight-delta-order';
-        }
+  list(, , $bundle) = entity_extract_ids($entity_type, $entity);
+  foreach(field_info_instances($entity_type, $bundle) as $field_name => $instance) {
+    $mvw_widget_type = drupal_array_get_nested_value($instance, array('widget', 'settings', 'multiple_value_widget'));
+    if(is_null($mvw_widget_type) || $mvw_widget_type === 'table' || !isset($form[$field_name][$langcode])) {
+      continue;
+    }
+
+    $element = &$form[$field_name][$langcode];
+    $theme = isset($element['#theme']) ? $element['#theme'] : null;
+    if(!isset($theme_map[$theme])) {
+      continue;
+    }
+    $element['#theme'] = $theme_map[$theme];
+    $element['#mvw']['widget_type'] = $mvw_widget_type;
+    $element['#mvw']['field_name'] = $field_name;
+
+    foreach(element_children($element) as $delta) {
+      if(isset($element[$delta]['_weight'])) {
+        $element[$delta]['_weight']['#type'] = 'hidden';
+        $element[$delta]['_weight']['#element_validate'] = array('element_validate_integer');
+        $element[$delta]['_weight']['#attributes']['class'][] = 'mvw-weight-delta-order';
       }
     }
   }

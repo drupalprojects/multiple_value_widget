@@ -14,6 +14,11 @@ function template_preprocess_multiple_value_widget_form(&$vars) {
   }
 }
 
+function template_preprocess_multiple_value_widget_file_widget_multiple(&$vars) {
+  template_preprocess_multiple_value_widget_form($vars);
+}
+
+
 /**
  * Implements template_process_HOOK().
  */
@@ -24,6 +29,11 @@ function template_process_multiple_value_widget_form(&$vars) {
   // preview or failed validation).
   usort($element['#mvw']['widgets'], '_field_sort_items_value_helper');
 }
+
+function template_process_multiple_value_widget_file_widget_multiple(&$vars) {
+  template_process_multiple_value_widget_form($vars);
+}
+
 
 
 /**
@@ -36,21 +46,23 @@ function theme_multiple_value_widget_form(&$vars) {
   $field_name  = $element['#mvw']['field_name'];
   $element_widgets = $element['#mvw']['widgets'];
 
-  $id = "mvw-$field_name";
+  $id = drupal_html_id("mvw-$field_name");
 
   $render = array();
+  $render['#attached']['library'][] = array('multiple_value_widget', 'core');
+  $render['#attached']['js'][] = array('type' => 'setting', 'data' => array(
+    'mvw' => array($id => $widget_type),
+  ));
+
+  $label_keys = array('#title', '#title_display', '#required');
+  $render['title'] = array(
+    '#theme' => 'form_element_label',
+  ) + array_intersect_key($element, array_flip($label_keys));
+
   $render['widgets'] = array(
     '#prefix' => "<div id=\"$id\" class=\"mvw-type-$widget_type\">",
     '#suffix' => '</div>'
   );
-
-  $render['#attached']['library'][] = array('multiple_value_widget', 'core');
-  $render['#attributes']['data-draggable'] = '.mvw-item-title';
-  $render['#attributes']['data-sortable'] = 1;
-
-  $js_settings = array();
-  $js_settings['mvw'][$id] = $widget_type;
-  drupal_add_js($js_settings, 'setting');
 
   foreach ($element_widgets as $delta => $element_widget) {
 
@@ -84,8 +96,10 @@ function theme_multiple_value_widget_form(&$vars) {
     $render['widgets'][$delta] = $render_widget;
   }
 
-  $render['add_more'] = $element['add_more'];
-  $render['add_more']['#attributes']['class'][] = 'clearfix';
+  // Transfer any remaining elements.
+  foreach(array_diff(element_children($element), array_keys($element_widgets)) as $name) {
+    $render[$name] = $element[$name];
+  }
 
   $render['#widgets'] = $element_widgets;
 
@@ -96,9 +110,84 @@ function theme_multiple_value_widget_form(&$vars) {
 }
 
 
-function theme_multiple_value_widget_file_widget_multiple($variables) {
+function theme_multiple_value_widget_file_widget_multiple($vars) {
 
-  $element = $variables['element'];
+  $element     = $vars['element'];
+  $widget_type = $element['#mvw']['widget_type'];
+  $field_name  = $element['#mvw']['field_name'];
+  $element_widgets = $element['#mvw']['widgets'];
+
+  $id = "mvw-$field_name";
+
+  $render = array();
+  $render['widgets'] = array(
+    '#prefix' => "<div id=\"$id\" class=\"mvw-type-$widget_type\">",
+    '#suffix' => '</div>'
+  );
+
+  $render['#attached']['library'][] = array('multiple_value_widget', 'core');
+  $render['#attributes']['data-draggable'] = '.mvw-item-title';
+  $render['#attributes']['data-sortable'] = 1;
+
+  $js_settings = array();
+  $js_settings['mvw'][$id] = $widget_type;
+  $render['#attached']['js'][] = array('data' => $js_settings, 'type' => 'setting');
+
+  foreach ($element_widgets as $delta => $element_widget) {
+
+    $render_widget = array(
+      '#type' => 'container',
+      '#title' => $element_widget['#title'],
+      '#attributes' => array(
+        'id' => 'mvw-group-' . $element['#field_name'] . '-' . $delta,
+        'class' => array('mvw-item', 'delta-' . $delta),
+      ),
+    );
+
+    $render_widget['title'] = array(
+      '#type' => 'container',
+      '#attributes' => array(
+        'class' => array('mvw-item-title'),
+      ),
+      'value' => array(
+        '#markup' => check_plain($element_widget['#title']),
+      ),
+    );
+
+    $render_widget['content'] = array(
+        '#type' => 'container',
+        '#attributes' => array(
+          'class' => array('mvw-item-content'),
+        ),
+        '#weight' => .001,
+      ) + $element_widget;
+
+    $render['widgets'][$delta] = $render_widget;
+  }
+
+  $render['add_more'] = $element['add_more'];
+  $render['add_more']['#attributes']['class'][] = 'clearfix';
+
+  $render['#widgets'] = $element_widgets;
+
+  $widget = multiple_value_widget_get_widget($widget_type);
+  $render['#theme'] = $widget['theme'];
+
+  return drupal_render($render);
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
   // Get our list of widgets in order (needed when the form comes back after
   // preview or failed validation).
@@ -118,7 +207,7 @@ function theme_multiple_value_widget_file_widget_multiple($variables) {
 
   $id = 'mvw-' . $element['#field_name'];
 
-  multiple_value_widget_add_assets($id, $widget_type);
+//  multiple_value_widget_add_assets($id, $widget_type);
 
   $output = '<div id="' . $id . '" class="mvw-type-' . $widget_type . '">';
 
