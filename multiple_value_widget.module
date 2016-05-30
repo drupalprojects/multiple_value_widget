@@ -197,6 +197,20 @@ function multiple_value_widget_field_attach_form($entity_type, $entity, &$form, 
         $element[$delta]['_weight']['#attributes']['class'][] = 'mvw-weight-delta-order';
       }
     }
+
+    $mvw_widget_info = multiple_value_widget_get_widget($mvw_widget_type);
+    if(isset($mvw_widget_info['file'])) {
+      require_once $mvw_widget_info['file'];
+    }
+    if(isset($mvw_widget_info['form callback']) && function_exists($mvw_widget_info['form callback'])) {
+      $context = array(
+        'entity_type' => $entity_type,
+        'entity' => $entity,
+        'langcode' => $langcode,
+        'items' => $entity->{$field_name}[$field_language]
+      );
+      $mvw_widget_info['form callback']($element, $form_state, $context);
+    }
   }
 }
 
