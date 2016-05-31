@@ -203,11 +203,12 @@ function multiple_value_widget_field_attach_form($entity_type, $entity, &$form, 
       require_once $mvw_widget_info['file'];
     }
     if(isset($mvw_widget_info['form callback']) && function_exists($mvw_widget_info['form callback'])) {
+      $items = isset($entity->{$field_name}[$field_language]) ? $entity->{$field_name}[$field_language] : array();
       $context = array(
         'entity_type' => $entity_type,
         'entity' => $entity,
         'langcode' => $langcode,
-        'items' => $entity->{$field_name}[$field_language]
+        'items' => $items,
       );
       $mvw_widget_info['form callback']($element, $form_state, $context);
     }
